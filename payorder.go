@@ -186,32 +186,30 @@ func (o *PayOrder) refundQuery(orderId string, orderIdType ORDERIDTYPE) (map[str
 
 func (o *PayOrder) refundNotify(w http.ResponseWriter, req *http.Request) {
 	respXml := ""
+	var err error
 	if reqMap, err := o.parseRequest(req); err == nil {
-		sign_type := reqMap["sign_type"]
-		signStr := reqMap["sign"]
-		if sign_type == "" {
-			sign_type = string(MD5)
-		}
-		if signRet, _ := newSign().checkSign(reqMap, cfg.Key, SIGNTYPE(sign_type), signStr); signRet {
-			if notifyLogic != nil {
-				notifyLogic.OnRefundNotify(reqMap)
+		var reqInfo = reqMap["req_info"]
+		if reqInfo != "" {
+			if _, err := newDecode().aes_256_ecb(reqInfo, cfg.Key); err == nil {
+				//decodeInfo
+				if notifyLogic != nil {
+					notifyLogic.OnRefundNotify(reqMap)
+				}
+				respXml = `<xml> 
+  					<return_code><![CDATA[SUCCESS]]></return_code>
+   					<return_msg><![CDATA[OK]]></return_msg>
+ 					</xml>`
+				logs("notify_resp", respXml)
+				w.Write([]byte(respXml))
+				return
 			}
-			respXml = `<xml> 
-  			<return_code><![CDATA[SUCCESS]]></return_code>
-   			<return_msg><![CDATA[OK]]></return_msg>
- 			</xml>`
-		} else {
-			respXml = fmt.Sprintf(`<xml> 
-  			<return_code><![CDATA[%s]]></return_code>
-   			<return_msg><![CDATA[%s]]></return_msg>
- 			</xml>`, "SIGNERROR", "签名错误")
 		}
-	} else {
-		respXml = fmt.Sprintf(`<xml> 
+	}
+	respXml = fmt.Sprintf(`<xml> 
   			<return_code><![CDATA[FAIL]]></return_code>
    			<return_msg><![CDATA[%s]]></return_msg>
  			</xml>`, err.Error())
-	}
+
 	logs("notify_resp", respXml)
 	w.Write([]byte(respXml))
 }

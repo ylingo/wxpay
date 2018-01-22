@@ -15,7 +15,7 @@ func newPayOrder() *PayOrder {
 	return &PayOrder{}
 }
 
-func (o *PayOrder) order(body, attach, out_trade_no, spbill_create_ip, trade_type string, total_fee int, notifyUrl string) (map[string]interface{}, error) {
+func (o *PayOrder) order(body, attach, out_trade_no, spbill_create_ip, trade_type string, total_fee int, notifyUrl string) (map[string]string, error) {
 	reqEntry := unifiedOrder_Req{
 		AppId:          cfg.App_Id,
 		MchId:          cfg.Mch_Id,
@@ -32,6 +32,7 @@ func (o *PayOrder) order(body, attach, out_trade_no, spbill_create_ip, trade_typ
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)
+	logs("req", signXml)
 	webReq := newHttpRequest()
 	req, _ := webReq.getRequest("POST", cfg.WXBaseUrl+cfg.UnifiedOrderUrl, signXml)
 	req.Header.Add("ContentType", "text/xml")
@@ -42,7 +43,7 @@ func (o *PayOrder) order(body, attach, out_trade_no, spbill_create_ip, trade_typ
 	return nil, err
 }
 
-func (o *PayOrder) close(out_trade_no string) (map[string]interface{}, error) {
+func (o *PayOrder) close(out_trade_no string) (map[string]string, error) {
 
 	reqEntry := closeOrder_Req{
 		AppId:      cfg.App_Id,
@@ -52,6 +53,7 @@ func (o *PayOrder) close(out_trade_no string) (map[string]interface{}, error) {
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)
+	logs("req", signXml)
 	webReq := newHttpRequest()
 	req, _ := webReq.getRequest("POST", cfg.WXBaseUrl+cfg.CloseOrderUrl, signXml)
 	req.Header.Add("ContentType", "text/xml")
@@ -62,7 +64,7 @@ func (o *PayOrder) close(out_trade_no string) (map[string]interface{}, error) {
 	return nil, err
 }
 
-func (o *PayOrder) query(out_trade_no string) (map[string]interface{}, error) {
+func (o *PayOrder) query(out_trade_no string) (map[string]string, error) {
 	reqEntry := queryOrder_Req{
 		AppId:      cfg.App_Id,
 		MchId:      cfg.Mch_Id,
@@ -71,6 +73,7 @@ func (o *PayOrder) query(out_trade_no string) (map[string]interface{}, error) {
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)
+	logs("req", signXml)
 	webReq := newHttpRequest()
 	req, _ := webReq.getRequest("POST", cfg.WXBaseUrl+cfg.OrderQueryUrl, signXml)
 	req.Header.Add("ContentType", "text/xml")
@@ -82,23 +85,38 @@ func (o *PayOrder) query(out_trade_no string) (map[string]interface{}, error) {
 }
 
 func (o *PayOrder) payNotify(w http.ResponseWriter, req *http.Request) {
+	var respXml string
 	if reqMap, err := o.parseRequest(req); err == nil {
-		if notifyLogic != nil {
-			notifyLogic.OnPayNotify(reqMap)
+		sign_type := reqMap["sign_type"]
+		signStr := reqMap["sign"]
+		if sign_type == "" {
+			sign_type = string(MD5)
 		}
-		w.Write([]byte(`<xml> 
+		if singRet, _ := newSign().checkSign(reqMap, cfg.Key, SIGNTYPE(sign_type), signStr); singRet {
+			if notifyLogic != nil {
+				notifyLogic.OnPayNotify(reqMap)
+			}
+			respXml = `<xml> 
   			<return_code><![CDATA[SUCCESS]]></return_code>
    			<return_msg><![CDATA[OK]]></return_msg>
- 			</xml>`))
+ 			</xml>`
+		} else {
+			respXml = fmt.Sprintf(`<xml> 
+  			<return_code><![CDATA[%s]]></return_code>
+   			<return_msg><![CDATA[%s]]></return_msg>
+ 			</xml>`, "SIGNERROR", "签名错误")
+		}
 	} else {
-		w.Write([]byte(fmt.Sprintf(`<xml> 
+		respXml = fmt.Sprintf(`<xml> 
   			<return_code><![CDATA[FAIL]]></return_code>
    			<return_msg><![CDATA[%s]]></return_msg>
- 			</xml>`, err.Error())))
+ 			</xml>`, err.Error())
 	}
+	logs("notify_resp", respXml)
+	w.Write([]byte(respXml))
 }
 
-func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_fee int, refund_desc, refund_account string) (map[string]interface{}, error) {
+func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_fee int, refund_desc, refund_account string) (map[string]string, error) {
 	reqEntry := refund_Req{
 		AppId:         cfg.App_Id,
 		MchId:         cfg.Mch_Id,
@@ -111,6 +129,7 @@ func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)
+	logs("req", signXml)
 	webReq := newHttpRequest()
 	req, _ := webReq.getRequest("POST", cfg.WXBaseUrl+cfg.RefundUrl, signXml)
 	req.Header.Add("ContentType", "text/xml")
@@ -121,7 +140,7 @@ func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_
 	return nil, err
 }
 
-func (o *PayOrder) refundQuery(orderId string, orderIdType ORDERIDTYPE) (map[string]interface{}, error) {
+func (o *PayOrder) refundQuery(orderId string, orderIdType ORDERIDTYPE) (map[string]string, error) {
 	reqEntry := queryRefund_Req{
 		AppId:    cfg.App_Id,
 		MchId:    cfg.Mch_Id,
@@ -154,6 +173,7 @@ func (o *PayOrder) refundQuery(orderId string, orderIdType ORDERIDTYPE) (map[str
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)
+	logs("req", signXml)
 	webReq := newHttpRequest()
 	req, _ := webReq.getRequest("POST", cfg.WXBaseUrl+cfg.RefundUrl, signXml)
 	req.Header.Add("ContentType", "text/xml")
@@ -165,57 +185,74 @@ func (o *PayOrder) refundQuery(orderId string, orderIdType ORDERIDTYPE) (map[str
 }
 
 func (o *PayOrder) refundNotify(w http.ResponseWriter, req *http.Request) {
+	respXml := ""
 	if reqMap, err := o.parseRequest(req); err == nil {
-		if notifyLogic != nil {
-			notifyLogic.OnRefundNotify(reqMap)
+		sign_type := reqMap["sign_type"]
+		signStr := reqMap["sign"]
+		if sign_type == "" {
+			sign_type = string(MD5)
 		}
-		w.Write([]byte(`<xml> 
+		if signRet, _ := newSign().checkSign(reqMap, cfg.Key, SIGNTYPE(sign_type), signStr); signRet {
+			if notifyLogic != nil {
+				notifyLogic.OnRefundNotify(reqMap)
+			}
+			respXml = `<xml> 
   			<return_code><![CDATA[SUCCESS]]></return_code>
    			<return_msg><![CDATA[OK]]></return_msg>
- 			</xml>`))
+ 			</xml>`
+		} else {
+			respXml = fmt.Sprintf(`<xml> 
+  			<return_code><![CDATA[%s]]></return_code>
+   			<return_msg><![CDATA[%s]]></return_msg>
+ 			</xml>`, "SIGNERROR", "签名错误")
+		}
 	} else {
-		w.Write([]byte(fmt.Sprintf(`<xml> 
+		respXml = fmt.Sprintf(`<xml> 
   			<return_code><![CDATA[FAIL]]></return_code>
    			<return_msg><![CDATA[%s]]></return_msg>
- 			</xml>`, err.Error())))
+ 			</xml>`, err.Error())
 	}
+	logs("notify_resp", respXml)
+	w.Write([]byte(respXml))
 }
 
-func (o *PayOrder) parseRequest(request *http.Request) (req map[string]interface{}, err error) {
+func (o *PayOrder) parseRequest(request *http.Request) (req map[string]string, err error) {
 	defer request.Body.Close()
 	var bodyXml []byte
 	if bodyXml, err = ioutil.ReadAll(request.Body); err == nil {
-		req = make(map[string]interface{})
-		if err = xml.Unmarshal(bodyXml, &req); err == nil {
-			if strings.ToUpper(req["return_code"].(string)) == "success" {
-				if strings.ToUpper(req["result_code"].(string)) == "SUCCESS" ||
-					req["result_code"] == nil {
+		logs("notify", string(bodyXml))
+		req = make(map[string]string)
+		if err = xml.Unmarshal(bodyXml, (*xmlMap)(&req)); err == nil {
+			if strings.ToUpper(req["return_code"]) == "success" {
+				if strings.ToUpper(req["result_code"]) == "SUCCESS" ||
+					req["result_code"] == "" {
 					return
 				} else {
-					err = fmt.Errorf("%s,%s", req["err_code"].(string), req["err_code_des"].(string))
+					err = fmt.Errorf("%s,%s", req["err_code"], req["err_code_des"])
 				}
 			} else {
-				err = fmt.Errorf("%s,%s", req["return_code"].(string), req["return_msg"].(string))
+				err = fmt.Errorf("%s,%s", req["return_code"], req["return_msg"])
 			}
 		}
 	}
 	return
 }
 
-func (o *PayOrder) parseReponse(response *http.Response) (resp map[string]interface{}, err error) {
+func (o *PayOrder) parseReponse(response *http.Response) (resp map[string]string, err error) {
 	defer response.Body.Close()
 	var bodyXml []byte
 	if bodyXml, err = ioutil.ReadAll(response.Body); err == nil {
-		resp = make(map[string]interface{})
-		if err = xml.Unmarshal(bodyXml, &resp); err == nil {
-			if strings.ToUpper(resp["return_code"].(string)) == "success" {
-				if strings.ToUpper(resp["result_code"].(string)) == "SUCCESS" {
+		logs("resp", string(bodyXml))
+		resp = make(map[string]string)
+		if err = xml.Unmarshal(bodyXml, (*xmlMap)(&resp)); err == nil {
+			if strings.ToUpper(resp["return_code"]) == "success" {
+				if strings.ToUpper(resp["result_code"]) == "SUCCESS" {
 					return
 				} else {
-					err = fmt.Errorf("%s,%s", resp["err_code"].(string), resp["err_code_des"].(string))
+					err = fmt.Errorf("%s,%s", resp["err_code"], resp["err_code_des"])
 				}
 			} else {
-				err = fmt.Errorf("%s,%s", resp["return_code"].(string), resp["return_msg"].(string))
+				err = fmt.Errorf("%s,%s", resp["return_code"], resp["return_msg"])
 			}
 		}
 	}

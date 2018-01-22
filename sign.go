@@ -2,10 +2,6 @@ package wxpay
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/md5"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -14,7 +10,7 @@ import (
 
 type KV struct {
 	key string
-	val string
+	val interface{}
 }
 
 type sign struct {
@@ -28,9 +24,9 @@ func (s sign) sign(v interface{}, key string, signType SIGNTYPE) string {
 	return s.sliceToXml(s.addSign(s.mapToSliceAndSort(s.structToMap(v)), key, signType))
 }
 
-func (s sign) checkSign(v interface{}, key string, signType SIGNTYPE, signStr string) (bool, string) {
+func (s sign) checkSign(v map[string]string, key string, signType SIGNTYPE, signStr string) (bool, string) {
 	var ret bool = false
-	newSignStr := s.getSign(s.mapToSliceAndSort(s.structToMap(v)), key, signType)
+	newSignStr := s.getSign(s.mapToSliceAndSort(v), key, signType)
 	if signStr == newSignStr {
 		ret = true
 	}
@@ -38,15 +34,11 @@ func (s sign) checkSign(v interface{}, key string, signType SIGNTYPE, signStr st
 }
 
 func (s sign) md5(str string) string {
-	hash := md5.New()
-	hash.Write([]byte(str))
-	return strings.ToUpper(hex.EncodeToString(hash.Sum(nil)))
+	return strings.ToUpper(newEncode().md5(str))
 }
 
 func (s sign) hmac_sha256(str string, secret string) string {
-	hash := hmac.New(sha256.New, []byte(secret))
-	hash.Write([]byte(str))
-	return strings.ToUpper(hex.EncodeToString(hash.Sum(nil)))
+	return strings.ToUpper(newEncode().hmac_sha256(str, secret))
 }
 
 //
@@ -58,7 +50,7 @@ func (s sign) getSign(kvs []KV, key string, signType SIGNTYPE) string {
 	var signStr string = ""
 	var signBuf bytes.Buffer
 	for _, kv := range kvs {
-		signBuf.WriteString(fmt.Sprintf("%s=%s&", kv.key, kv.val))
+		signBuf.WriteString(fmt.Sprintf("%s=%s&", kv.key, kv.val.(string)))
 	}
 	signBuf.WriteString(fmt.Sprintf("key=%s", key))
 	fmt.Println("aaa:" + signBuf.String())
@@ -87,7 +79,7 @@ func (s sign) sliceToXml(kvs []KV) string {
 	var buf bytes.Buffer
 	buf.WriteString("<xml>")
 	for _, kv := range kvs {
-		buf.WriteString(fmt.Sprintf("<%s><![CDATA[%s]]></%s>", kv.key, kv.val, kv.key))
+		buf.WriteString(fmt.Sprintf("<%s><![CDATA[%s]]></%s>", kv.key, kv.val.(string), kv.key))
 	}
 	buf.WriteString("</xml>")
 	return buf.String()

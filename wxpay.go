@@ -23,10 +23,9 @@ var cfg WxPayConfig = WxPayConfig{}
 var notifyLogic NotifyLogic
 
 type WxPay struct {
-	notifycallback NotifyCallBack
 }
 
-func NewWxPay(appId, mchId, BaseUrl, key string, logcb LogCallBack, notifycb NotifyCallBack) *WxPay {
+func NewWxPay(appId, mchId, BaseUrl, key string, logcb LogCallBack, notifycb NotifyLogic) *WxPay {
 	cfg = WxPayConfig{
 		App_Id:          appId,
 		Mch_Id:          mchId,
@@ -40,28 +39,27 @@ func NewWxPay(appId, mchId, BaseUrl, key string, logcb LogCallBack, notifycb Not
 		DefaultSignType: MD5,
 	}
 	logCallBack = logcb
-	return &WxPay{
-		notifycallback: notifycb,
-	}
+	notifyLogic = notifycb
+	return &WxPay{}
 }
 
-func (w WxPay) UnifiedOrder(body, attach, out_trade_no, spbill_create_ip, trade_type string, total_fee int, notifyUrl string) (map[string]interface{}, error) {
+func (w WxPay) UnifiedOrder(body, attach, out_trade_no, spbill_create_ip, trade_type string, total_fee int, notifyUrl string) (map[string]string, error) {
 	return newPayOrder().order(body, attach, out_trade_no, spbill_create_ip, trade_type, total_fee, notifyUrl)
 }
 
-func (w WxPay) OrderQuery(out_trade_no string) (map[string]interface{}, error) {
+func (w WxPay) OrderQuery(out_trade_no string) (map[string]string, error) {
 	return newPayOrder().query(out_trade_no)
 }
 
-func (w WxPay) CloseOrder(out_trade_no string) (map[string]interface{}, error) {
+func (w WxPay) CloseOrder(out_trade_no string) (map[string]string, error) {
 	return newPayOrder().close(out_trade_no)
 }
 
-func (w WxPay) Refund(out_trade_no, out_refund_no string, total_fee, refund_fee int, refund_desc, refund_account string) (map[string]interface{}, error) {
+func (w WxPay) Refund(out_trade_no, out_refund_no string, total_fee, refund_fee int, refund_desc, refund_account string) (map[string]string, error) {
 	return newPayOrder().refund(out_refund_no, out_refund_no, total_fee, refund_fee, refund_desc, refund_account)
 }
 
-func (w WxPay) RefundQuery(orderId string, orderIdType ORDERIDTYPE) (map[string]interface{}, error) {
+func (w WxPay) RefundQuery(orderId string, orderIdType ORDERIDTYPE) (map[string]string, error) {
 	return newPayOrder().refundQuery(orderId, orderIdType)
 }
 

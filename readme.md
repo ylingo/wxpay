@@ -6,3 +6,7 @@
         OnPayNotify(map[string]interface{})
 	OnRefundNotify(map[string]interface{})
 当微信通知到达后会调用该接口
+
+如果需要记录请求、应答或通知、应答的XML源，则需要实现LogCallBack interface
+   OnLog(logType string, logContent string)
+

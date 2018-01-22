@@ -1,7 +1,7 @@
 package wxpay
 
 import (
-	//"encoding/xml"
+	"encoding/xml"
 	"fmt"
 	"testing"
 )
@@ -16,8 +16,6 @@ func Init() {
 		CloseOrderUrl:   "/pay/closeorder",
 		RefundUrl:       "/secapi/pay/refund",
 		DownloadUrl:     "/pay/downloadbill",
-		ReportUrl:       "/payitil/report",
-		NotifyUrl:       "http://171.221.223.246",
 		Key:             "192006250b4c09247ec02edce69f6a2d",
 		DefaultSignType: MD5,
 	}
@@ -77,7 +75,7 @@ func _TestXml(t *testing.T) {
 func _TestSign(t *testing.T) {
 	Init()
 	//signType := MD5
-	req := UnifiedOrder_Req{
+	req := unifiedOrder_Req{
 		AppId:    cfg.App_Id,
 		MchId:    cfg.Mch_Id,
 		NonceStr: "1add1a30ac87aa2db72f57a2375d8fec", //randstr.GetRandString(),
@@ -129,4 +127,27 @@ func _TestCheckSign(t *testing.T) {
 	//	} else {
 	//		t.Error("fail")
 	//	}
+}
+
+func Test1(t *testing.T) {
+	bodyXml := `<xml>
+    <appid>wx2421b1c4370ec43b</appid>
+    <attach>支付测试</attach>
+    <body>APP支付测试</body>
+    <mch_id>10000100</mch_id>
+    <nonce_str>1add1a30ac87aa2db72f57a2375d8fec</nonce_str>
+    <notify_url>http://wxpay.wxutil.com/pub_v2/pay/notify.v2.php</notify_url>
+    <out_trade_no>1415659990</out_trade_no>
+    <spbill_create_ip>14.23.150.211</spbill_create_ip>
+    <total_fee>1</total_fee>
+    <trade_type>APP</trade_type>
+    <sign><![CDATA[0CB01533B8C1EF103065174F50BCA001]]></sign>
+ </xml> `
+
+	var aa map[string]string
+
+	xml.Unmarshal([]byte(bodyXml), (*xmlMap)(&aa))
+	t.Log(aa)
+	ss, _ := xml.Marshal(xmlMap(aa))
+	t.Log(string(ss))
 }

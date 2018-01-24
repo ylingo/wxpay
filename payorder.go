@@ -64,12 +64,23 @@ func (o *PayOrder) close(out_trade_no string) (map[string]string, error) {
 	return nil, err
 }
 
-func (o *PayOrder) query(out_trade_no string) (map[string]string, error) {
+func (o *PayOrder) query(orderId string, orderIdType ORDERIDTYPE) (map[string]string, error) {
 	reqEntry := queryOrder_Req{
-		AppId:      cfg.App_Id,
-		MchId:      cfg.Mch_Id,
-		NonceStr:   randstr.GetRandString(),
-		OutTradeNo: out_trade_no,
+		AppId:    cfg.App_Id,
+		MchId:    cfg.Mch_Id,
+		NonceStr: randstr.GetRandString(),
+		OutTradeNo: func() string {
+			if OUTTRADENO == orderIdType {
+				return orderId
+			}
+			return ""
+		}(),
+		TransactionId: func() string {
+			if TRANSACTIONID == orderIdType {
+				return orderId
+			}
+			return ""
+		}(),
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)
@@ -116,7 +127,7 @@ func (o *PayOrder) payNotify(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte(respXml))
 }
 
-func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_fee int, refund_desc, refund_account string) (map[string]string, error) {
+func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_fee int, refund_desc string) (map[string]string, error) {
 	reqEntry := refund_Req{
 		AppId:         cfg.App_Id,
 		MchId:         cfg.Mch_Id,
@@ -125,7 +136,7 @@ func (o *PayOrder) refund(out_trade_no, out_refund_no string, total_fee, refund_
 		TotalFee:      fmt.Sprintf("%d", total_fee),
 		RefundFee:     fmt.Sprintf("%d", refund_fee),
 		RefundDesc:    refund_desc,
-		RefundAccount: refund_account,
+		RefundAccount: "", //默认使用未结算资金退款
 	}
 	signXml := newSign().sign(reqEntry, cfg.Key, cfg.DefaultSignType)
 	//fmt.Print(signXml)

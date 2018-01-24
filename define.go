@@ -28,6 +28,7 @@ type queryOrder_Req struct {
 	MchId      string `xml:"mch_id"`
 	NonceStr   string `xml:"nonce_str"`
 	OutTradeNo string `xml:"out_trade_no"`
+	TransactionId string `xml:"transactionid"`
 	SignType   string `xml:"sign_type"`
 	Sign       string `xml:"sign"`
 }

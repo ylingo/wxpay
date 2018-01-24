@@ -41,7 +41,7 @@ func (s sign) hmac_sha256(str string, secret string) string {
 	return strings.ToUpper(newEncode().hmac_sha256(str, secret))
 }
 
-//
+//对已有字段加签，并将key sing加入KV结构的slice
 func (s sign) addSign(kvs []KV, key string, signType SIGNTYPE) []KV {
 	return append(kvs, KV{"sign", s.getSign(kvs, key, signType)})
 }
@@ -62,7 +62,7 @@ func (s sign) getSign(kvs []KV, key string, signType SIGNTYPE) string {
 	return signStr
 }
 
-//
+//map[string]string转换成KV结构体的slice,并对key进行排序
 func (s sign) mapToSliceAndSort(m map[string]string) []KV {
 	var kvs []KV
 	for k, v := range m {
@@ -74,7 +74,7 @@ func (s sign) mapToSliceAndSort(m map[string]string) []KV {
 	return kvs
 }
 
-//
+//将slice转换成XML
 func (s sign) sliceToXml(kvs []KV) string {
 	var buf bytes.Buffer
 	buf.WriteString("<xml>")
@@ -85,6 +85,8 @@ func (s sign) sliceToXml(kvs []KV) string {
 	return buf.String()
 }
 
+//将结构体转换成map[string]string 字段值均变成string类型
+//剔除了字段值为空的字段，如果字段名为sign也需要剔除
 func (s sign) structToMap(v interface{}) map[string]string {
 	vt := reflect.TypeOf(v)
 	vv := reflect.ValueOf(v)
